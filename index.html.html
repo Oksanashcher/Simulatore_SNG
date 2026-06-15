@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulatore SNG – Training Infermieristico</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+:root {
+  --bg:#0f1117; --surface:#181c27; --surface2:#1e2334; --border:#2a3048;
+  --accent:#4fc3f7; --accent2:#7986cb; --warn:#ef9a9a; --ok:#80cbc4;
+  --text:#e8eaf6; --muted:#7986cb;
+  --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;display:flex;flex-direction:column}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:16px}
+.logo-badge{background:var(--accent);color:#0f1117;font-family:var(--mono);font-size:11px;font-weight:600;padding:4px 10px;letter-spacing:.08em;border-radius:2px}
+header h1{font-size:15px;font-weight:500;letter-spacing:.02em}
+.phase-indicator{margin-left:auto;display:flex;gap:8px;align-items:center}
+.phase-dot{width:8px;height:8px;border-radius:50%;background:var(--border);transition:background .3s}
+.phase-dot.active{background:var(--accent)}
+.phase-dot.done{background:var(--ok)}
+.phase-label{font-size:11px;color:var(--muted);font-family:var(--mono);letter-spacing:.05em}
+.app{display:grid;grid-template-columns:280px 1fr;flex:1;overflow:hidden;height:calc(100vh - 57px)}
+.sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+.case-card{padding:20px;border-bottom:1px solid var(--border)}
+.case-card h3{font-size:10px;font-family:var(--mono);color:var(--muted);letter-spacing:.1em;margin-bottom:12px;text-transform:uppercase}
+.patient-name{font-size:18px;font-weight:600;color:var(--accent);margin-bottom:4px}
+.patient-meta{font-size:12px;color:var(--muted);line-height:1.6}
+.patient-meta strong{color:var(--text)}
+.scenario-box{padding:16px 20px;border-bottom:1px solid var(--border)}
+.scenario-box h4{font-size:10px;font-family:var(--mono);color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+.scenario-box p{font-size:12px;line-height:1.7;color:#b0bec5}
+.phase-nav{padding:16px 20px}
+.phase-nav h4{font-size:10px;font-family:var(--mono);color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px}
+.phase-btn{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;background:transparent;border:1px solid transparent;border-radius:4px;color:var(--muted);font-family:var(--sans);font-size:12px;cursor:pointer;text-align:left;margin-bottom:4px;transition:all .2s}
+.phase-btn:hover{background:var(--surface2);color:var(--text)}
+.phase-btn.active{background:var(--surface2);border-color:var(--accent);color:var(--accent)}
+.phase-btn.done{color:var(--ok)}
+.phase-btn.locked{opacity:.4;cursor:not-allowed}
+.phase-num{font-family:var(--mono);font-size:10px;width:20px;text-align:center}
+.score-box{margin:auto 20px 20px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:14px}
+.score-box h4{font-size:10px;font-family:var(--mono);color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+.score-val{font-size:28px;font-family:var(--mono);font-weight:600;color:var(--accent)}
+.score-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.main{display:flex;flex-direction:column;overflow:hidden}
+.phase-header{padding:18px 28px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:12px}
+.phase-tag{font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase}
+.phase-title{font-size:16px;font-weight:500}
+.phase-desc{font-size:12px;color:var(--muted);margin-left:auto}
+.chat-area{flex:1;overflow-y:auto;padding:24px 28px;display:flex;flex-direction:column;gap:16px}
+.msg{display:flex;gap:12px;max-width:820px}
+.msg.user{flex-direction:row-reverse;align-self:flex-end}
+.avatar{width:32px;height:32px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;font-family:var(--mono);font-weight:600}
+.avatar.ai{background:#1a2744;color:var(--accent);border:1px solid var(--accent2)}
+.avatar.user-av{background:#1a2a1a;color:var(--ok);border:1px solid var(--ok)}
+.bubble{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:12px 16px;font-size:13px;line-height:1.7;max-width:650px}
+.msg.user .bubble{background:#0d1f2d;border-color:#1e3a4a}
+.bubble .sender{font-size:10px;font-family:var(--mono);color:var(--muted);letter-spacing:.08em;margin-bottom:6px;text-transform:uppercase}
+.bubble .sender.ai-name{color:var(--accent)}
+.bubble .sender.user-name{color:var(--ok)}
+.quiz-area{flex:1;overflow-y:auto;padding:24px 28px;display:flex;flex-direction:column;gap:16px}
+.quiz-card{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:20px 24px;max-width:700px}
+.quiz-step{font-size:10px;font-family:var(--mono);color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+.quiz-question{font-size:14px;font-weight:500;line-height:1.6;margin-bottom:16px}
+.quiz-context{font-size:12px;color:#b0bec5;line-height:1.6;margin-bottom:14px;padding:10px 14px;background:var(--surface);border-left:3px solid var(--accent2);border-radius:0 4px 4px 0}
+.quiz-opts{display:flex;flex-direction:column;gap:8px}
+.quiz-opt{padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:13px;transition:all .2s;text-align:left;color:var(--text);font-family:var(--sans)}
+.quiz-opt:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.quiz-opt.correct{background:#0d2318;border-color:var(--ok);color:var(--ok)}
+.quiz-opt.wrong{background:#2a1010;border-color:var(--warn);color:var(--warn)}
+.quiz-opt:disabled{cursor:default}
+.quiz-feedback{margin-top:14px;padding:12px 16px;border-radius:4px;font-size:13px;line-height:1.6}
+.quiz-feedback.ok{background:#0d2318;border:1px solid var(--ok);color:var(--ok)}
+.quiz-feedback.warn{background:#2a1010;border:1px solid var(--warn);color:var(--warn)}
+.pts-badge{display:inline-block;font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:2px;margin-left:8px;background:#1a2744;color:var(--accent);border:1px solid var(--accent2)}
+.checklist-card{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:20px 24px;max-width:700px}
+.checklist-card h4{font-size:10px;font-family:var(--mono);color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+.checklist-subtitle{font-size:12px;color:#b0bec5;margin-bottom:16px}
+.check-item{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px;line-height:1.5}
+.check-item:last-child{border-bottom:none}
+.check-item input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);margin-top:2px;flex-shrink:0;cursor:pointer}
+.check-item label{cursor:pointer;flex:1}
+.check-item.checked label{color:var(--ok);text-decoration:line-through;opacity:.6}
+.check-item .hint{font-size:11px;color:var(--muted);margin-top:4px;display:block}
+.verify-btn{margin-top:16px;background:var(--accent);color:#0f1117;border:none;border-radius:4px;padding:10px 20px;font-family:var(--mono);font-size:12px;font-weight:600;cursor:pointer;letter-spacing:.05em;transition:opacity .2s}
+.verify-btn:hover{opacity:.85}
+.verify-btn:disabled{opacity:.35;cursor:default}
+.progress-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:12px}
+.progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .4s}
+.input-area{padding:16px 28px;border-top:1px solid var(--border);background:var(--surface);display:flex;gap:10px;align-items:center}
+.next-phase-btn{width:100%;padding:12px;background:transparent;border:1px solid var(--accent);border-radius:4px;color:var(--accent);font-family:var(--mono);font-size:12px;font-weight:600;cursor:pointer;letter-spacing:.05em;transition:all .2s}
+.next-phase-btn:hover{background:var(--accent);color:#0f1117}
+.intro-screen{flex:1;display:flex;align-items:center;justify-content:center;padding:40px}
+.intro-card{max-width:560px;text-align:center}
+.intro-card .big-icon{font-size:52px;margin-bottom:20px}
+.intro-card h2{font-size:22px;font-weight:600;margin-bottom:10px;color:var(--accent)}
+.intro-card p{font-size:13px;color:#b0bec5;line-height:1.8;margin-bottom:28px}
+.start-btn{background:var(--accent);color:#0f1117;border:none;border-radius:4px;padding:14px 36px;font-family:var(--mono);font-size:13px;font-weight:600;cursor:pointer;letter-spacing:.06em;transition:opacity .2s}
+.start-btn:hover{opacity:.85}
+.complete-screen{flex:1;display:flex;align-items:center;justify-content:center;padding:40px}
+.complete-card{max-width:520px;text-align:center;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:40px}
+.complete-card h2{font-size:22px;color:var(--ok);margin-bottom:12px}
+.complete-card p{font-size:13px;color:#b0bec5;line-height:1.8}
+.final-score{font-size:52px;font-family:var(--mono);font-weight:600;color:var(--accent);margin:20px 0}
+.restart-btn{margin-top:20px;background:transparent;border:1px solid var(--accent);color:var(--accent);padding:10px 28px;border-radius:4px;font-family:var(--mono);font-size:12px;cursor:pointer;transition:all .2s}
+.restart-btn:hover{background:var(--accent);color:#0f1117}
+.tag-ok{font-size:11px;font-family:var(--mono);color:var(--ok);margin-right:6px}
+.tag-warn{font-size:11px;font-family:var(--mono);color:var(--warn);margin-right:6px}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo-badge">SNG·SIM</span>
+  <h1>Simulatore Training — Sondino Nasogastrico</h1>
+  <div class="phase-indicator">
+    <span class="phase-label">FASE</span>
+    <div class="phase-dot" id="dot0"></div>
+    <div class="phase-dot" id="dot1"></div>
+    <div class="phase-dot" id="dot2"></div>
+  </div>
+</header>
+
+<div class="app" id="appLayout" style="display:none">
+  <aside class="sidebar">
+    <div class="case-card">
+      <h3>Caso Clinico</h3>
+      <div class="patient-name">Sig. Rossi Mario</div>
+      <div class="patient-meta">
+        <strong>Età:</strong> 68 anni<br>
+        <strong>Reparto:</strong> Medicina Interna<br>
+        <strong>Diagnosi:</strong> Disfagia post-ictus<br>
+        <strong>GCS:</strong> 14 (E4V4M6)<br>
+        <strong>Peso:</strong> 72 kg<br>
+        <strong>Allergie:</strong> Nessuna note
+      </div>
+    </div>
+    <div class="scenario-box">
+      <h4>Scenario</h4>
+      <p>Il paziente è ricoverato da 3 giorni. Non riesce a deglutire in sicurezza dopo TIA. Il medico ha prescritto nutrizione enterale via SNG.</p>
+    </div>
+    <div class="phase-nav">
+      <h4>Fasi del Training</h4>
+      <button class="phase-btn active" id="navBtn0" onclick="tryGoPhase(0)">
+        <span class="phase-num">01</span> Raccolta dati e consenso
+      </button>
+      <button class="phase-btn locked" id="navBtn1" onclick="tryGoPhase(1)">
+        <span class="phase-num">02</span> Colloquio col paziente
+      </button>
+      <button class="phase-btn locked" id="navBtn2" onclick="tryGoPhase(2)">
+        <span class="phase-num">03</span> Procedura SNG
+      </button>
+    </div>
+    <div class="score-box">
+      <h4>Punteggio</h4>
+      <div class="score-val" id="scoreDisplay">0</div>
+      <div class="score-sub">punti su 100</div>
+      <div class="progress-bar" style="margin-top:10px"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    </div>
+  </aside>
+
+  <main class="main" id="mainArea"></main>
+</div>
+
+<div id="introScreen" class="intro-screen">
+  <div class="intro-card">
+    <div class="big-icon">🏥</div>
+    <h2>Simulatore SNG — II Anno</h2>
+    <p>Training integrato su <strong>sondino nasogastrico</strong>: raccolta dati clinici, colloquio con il paziente simulato e procedura step-by-step con verifica delle competenze.<br><br>
+    Completa tutte e tre le fasi per ottenere il punteggio finale.<br>Nessuna connessione internet richiesta.</p>
+    <button class="start-btn" onclick="startSim()">▶ AVVIA SIMULAZIONE</button>
+  </div>
+</div>
+
+<script>
+var score = 0;
+var currentPhase = 0;
+var phaseDone = [false, false, false];
+var phaseScores = [0, 0, 0];
+
+// ─────────────────────────────────────────────
+// DATI FASE 1 — QUIZ raccolta dati + consenso
+// ─────────────────────────────────────────────
+var quizF1 = [
+  {
+    step: 'VALUTAZIONE CLINICA 1/5',
+    context: 'Il medico ti ha appena comunicato la prescrizione di SNG per nutrizione enterale nel Sig. Rossi, 68 aa, disfagia post-TIA. Prima di procedere devi raccogliere i dati necessari.',
+    question: 'Qual è la prima cosa che verifichi prima di procedere al posizionamento dell\'SNG?',
+    opts: [
+      'Preparo subito il materiale in sala procedura',
+      'Verifico controindicazioni assolute: trauma facciale, chirurgia recente naso/esofago/stomaco, varici esofagee',
+      'Chiedo al paziente se ha fame',
+      'Controllo che la sonda giusta sia disponibile in magazzino'
+    ],
+    correct: 1,
+    ok: 'Corretto. Le controindicazioni assolute vanno escluse prima di qualsiasi altra azione. In questo caso il paziente non presenta controindicazioni (TIA senza traumi facciali, nessuna chirurgia esofago-gastrica recente).',
+    warn: 'La valutazione delle controindicazioni assolute è il primo passo obbligatorio. Procedere senza questa verifica espone a rischi gravi (perforazione esofagea, emorragia).',
+    pts: 8
+  },
+  {
+    step: 'VALUTAZIONE CLINICA 2/5',
+    context: 'Hai escluso le controindicazioni assolute. Il sig. Rossi non ha traumi facciali, né chirurgie recenti a esofago o stomaco. Non ha varici esofagee documentate.',
+    question: 'Quale parametro neurologico devi valutare PRIMA del posizionamento per garantire la sicurezza della procedura?',
+    opts: [
+      'Il GCS (Glasgow Coma Scale) — verifica la collaborazione del paziente',
+      'La pressione arteriosa — serve per decidere il calibro della sonda',
+      'La temperatura corporea — indica lo stato infiammatorio',
+      'La frequenza cardiaca — indica il rischio di vagotonia'
+    ],
+    correct: 0,
+    ok: 'Esatto. Con GCS 14 il paziente è collaborante (E4V4M6). Un paziente con GCS < 8 richiede precauzioni aggiuntive e spesso protezione delle vie aeree prima del posizionamento SNG.',
+    warn: 'Il GCS è fondamentale: determina il livello di collaborazione del paziente e il rischio di inalazione durante la procedura. Il sig. Rossi ha GCS 14 — collaborante.',
+    pts: 7
+  },
+  {
+    step: 'VALUTAZIONE CLINICA 3/5',
+    context: 'GCS 14. Il paziente è sveglio e collaborante. Ora valuti gli altri parametri pre-procedura.',
+    question: 'Quali dati clinici vuoi consultare dalla cartella prima di procedere? (risposta più completa)',
+    opts: [
+      'Solo le allergie documentate',
+      'Allergie, coagulopatie, terapia anticoagulante in corso, integrità mucosa nasale',
+      'Solo la dieta prescritta dal dietista',
+      'Il gruppo sanguigno e la crossmatch'
+    ],
+    correct: 1,
+    ok: 'Ottimo. Allergie (rischio anafilassi da materiale sonda), coagulopatie e anticoagulanti (rischio epistassi severa), integrità nasale (deviazione setto, poliposi) — tutti dati che modificano il tuo approccio procedurale.',
+    warn: 'Prima della procedura devi raccogliere: allergie, stato della coagulazione, farmaci anticoagulanti e condizioni anatomiche nasali. Questi dati possono modificare la scelta della narice e il calibro della sonda.',
+    pts: 8
+  },
+  {
+    step: 'VALUTAZIONE CLINICA 4/5',
+    context: 'Allergie: nessuna documentata. Coagulazione: nella norma. Nessuna terapia anticoagulante. Nessuna deviazione del setto nota.',
+    question: 'Come scegli la narice da cui inserire l\'SNG?',
+    opts: [
+      'Sempre dalla narice destra per convenzione',
+      'Chiedi al paziente quale narice respira meglio e valuti visivamente la pervietà di entrambe',
+      'Dalla narice sinistra perché è più lontana dal piloro',
+      'Non importa, si può usare qualsiasi narice'
+    ],
+    correct: 1,
+    ok: 'Corretto. La scelta della narice deve essere individualizzata: si valuta la pervietà clinica (chiedi al paziente di inspirare da una narice alla volta tappando l\'altra) e si sceglie la più pervia. Riduce il trauma e facilita il passaggio della sonda.',
+    warn: 'Non esiste una narice "di default". La selezione corretta prevede valutazione della pervietà di entrambe le narici. Usare una narice ostruita aumenta il rischio di trauma e fallimento della procedura.',
+    pts: 7
+  },
+  {
+    step: 'CONSENSO INFORMATO 5/5',
+    context: 'Dati clinici raccolti, narice selezionata. Ora devi ottenere il consenso informato al posizionamento SNG.',
+    question: 'Il sig. Rossi ti chiede: "Questo tubo è proprio necessario? Non posso mangiare normalmente?" Come rispondi?',
+    opts: [
+      '"Il medico ha deciso così, non dipende da me."',
+      '"Capisco la sua preoccupazione. A causa della difficoltà a deglutire dopo l\'ictus, rischia di inalare il cibo nei polmoni. Il sondino ci permette di nutrirla in sicurezza finché la deglutizione non migliora."',
+      '"È solo temporaneo, non si preoccupi." (senza spiegare il perché)',
+      '"Se non lo mette rischia di morire."'
+    ],
+    correct: 1,
+    ok: 'Risposta eccellente. Hai: validato l\'emozione del paziente, spiegato il rischio (ab ingestis), illustrato il beneficio del presidio e lasciato aperta la prospettiva di recupero. Questo è consenso informato terapeutico.',
+    warn: 'Il consenso informato richiede: spiegazione del problema clinico, descrizione della procedura, benefici, rischi del rifiuto. Risposte evasive o paternalistiche non rispettano l\'autonomia del paziente.',
+    pts: 10
+  }
+];
+
+// ─────────────────────────────────────────────
+// DATI FASE 2 — COLLOQUIO PAZIENTE (scenario)
+// ─────────────────────────────────────────────
+var dialogF2 = [
+  {
+    paziente: 'Buongiorno. Sono Mario Rossi. Mi hanno detto che dovete mettermi un tubo... ma nessuno mi ha spiegato bene cosa succederà. Sono un po\' spaventato, a dire il vero.',
+    domanda: 'Come risponde all\'ansia del paziente e avvia il colloquio di consenso?',
+    opts: [
+      { testo: '"Stia tranquillo, è una procedura veloce." (poi cambio argomento)', score: 0, fb: 'Insufficiente. Hai minimizzato l\'ansia senza validarla né fornire informazioni. La comunicazione terapeutica richiede ascolto attivo e risposta empatica prima di procedere.' },
+      { testo: '"Capisco che sia preoccupato, è normale sentirsi così. Sono qui per spiegarle tutto con calma. Ha domande specifiche prima che cominci?"', score: 10, fb: 'Ottimo. Hai validato l\'emozione, offerto disponibilità e dato controllo al paziente. Questo riduce l\'ansia e facilita la collaborazione durante la procedura.' },
+      { testo: '"Il medico ha prescritto la procedura, quindi si deve fare."', score: 0, fb: 'Non corretto. Questa risposta ignora l\'ansia del paziente e non favorisce il consenso informato. Il paziente ha diritto a ricevere informazioni e a esprimere il proprio consenso liberamente.' },
+      { testo: '"Questo tubo è fastidioso ma non preoccuparsi, tutti lo fanno."', score: 3, fb: 'Parziale. Hai minimizzato il disagio in modo rassicurante ma hai banalizzato l\'esperienza. Evita il confronto con altri pazienti — ogni persona ha la sua esperienza.' }
+    ]
+  },
+  {
+    paziente: 'Grazie. Allora... questo tubo, fa molto male quando lo mettete?',
+    domanda: 'Il paziente chiede del dolore/fastidio. Come risponde in modo onesto e terapeutico?',
+    opts: [
+      { testo: '"No, non sente quasi niente." (per non spaventarlo)', score: 2, fb: 'Attenzione: non è completamente onesto. Il paziente potrebbe perdere fiducia se la procedura risulta più fastidiosa del previsto. La fiducia terapeutica si costruisce sull\'onestà.' },
+      { testo: '"Sentirà un fastidio alla gola quando la sonda passa, simile a un conato. È normale e passerà. Useremo del gel anestetico per ridurlo e le chiederò di deglutire per aiutare il passaggio."', score: 10, fb: 'Eccellente. Hai preparato il paziente realisticamente (cosa sentirà), spiegato il meccanismo (conato = riflesso faringeo), illustrato le misure di comfort e dato un ruolo attivo al paziente (deglutire).' },
+      { testo: '"È una procedura invasiva con rischi di perforazione, sanguinamento e pneumotorace."', score: 0, fb: 'Controindicato. Stai elencando le complicanze gravi senza contestualizzarne la probabilità (bassa). Questo aumenta inutilmente l\'ansia senza valore informativo proporzionato.' },
+      { testo: '"Dipende dalla sua sensibilità, non lo so."', score: 1, fb: 'Insufficiente. Questa risposta genera incertezza e ansia. L\'infermiere deve essere in grado di descrivere le sensazioni tipiche della procedura per preparare adeguatamente il paziente.' }
+    ]
+  },
+  {
+    paziente: 'E quanto tempo ci vorrà? Mia figlia viene alle 11, vorrei che finisse prima.',
+    domanda: 'Il paziente ha bisogno di pianificare. Come gestisce la richiesta temporale?',
+    opts: [
+      { testo: '"Non posso dirle quando finirà."', score: 0, fb: 'Non adeguato. Il paziente ha un bisogno legittimo di pianificazione. Risposta che genera ansia senza motivo.' },
+      { testo: '"La procedura dura in genere 10-15 minuti. Poi rimarrà a riposo 30 minuti per il controllo del posizionamento. Cercheremo di iniziare subito così lei è libero prima dell\'arrivo di sua figlia."', score: 10, fb: 'Ottimo. Hai fornito una stima realistica, spiegato il motivo del riposo post-procedura (verifica del posizionamento) e mostrato attenzione ai bisogni personali del paziente.' },
+      { testo: '"Non ci vorrà molto, stia tranquillo."', score: 3, fb: 'Generico. Meglio fornire una stima concreta. Il paziente ha chiesto una informazione specifica — la comunicazione terapeutica prevede risposte specifiche quando possibile.' },
+      { testo: '"Dipende da quanto è collaborante." (con tono implicito)', score: 1, fb: 'Non appropriato. Questa risposta mette responsabilità sul paziente in modo velato e può generare senso di colpa o ansia da prestazione.' }
+    ]
+  },
+  {
+    paziente: 'Va bene. Mi fido di lei. Cosa devo fare io durante la procedura per aiutarla?',
+    domanda: 'Il paziente chiede come collaborare. Come lo istruisce?',
+    opts: [
+      { testo: '"Non deve fare niente, penso a tutto io."', score: 1, fb: 'Insufficiente. Il paziente ha un ruolo attivo fondamentale durante il posizionamento SNG. Non coinvolgerlo aumenta il rischio di complicanze e riduce la collaborazione.' },
+      { testo: '"Quando le dico io, faccia un piccolo movimento di deglutizione — come se inghiottisse. Questo aiuta la sonda a scendere verso lo stomaco. Se sente un forte disagio, mi faccia cenno con la mano."', score: 10, fb: 'Perfetto. Hai dato istruzioni chiare e specifiche (cosa fare e quando), spiegato il perché (la deglutizione apre lo sfintere esofageo superiore), e stabilito un segnale non verbale per comunicare disagio — fondamentale quando il paziente non può parlare liberamente.' },
+      { testo: '"Stia fermo e non si muova."', score: 3, fb: 'Parziale. Stare fermi è importante ma non è l\'unica istruzione. Manca il ruolo attivo della deglutizione e il segnale per comunicare disagio.' },
+      { testo: '"Respiri profondamente e rilassi la gola."', score: 5, fb: 'Parzialmente corretto. La respirazione aiuta il rilassamento ma devi aggiungere l\'istruzione sulla deglutizione al momento opportuno e il segnale manuale per il disagio.' }
+    ]
+  }
+];
+
+// ─────────────────────────────────────────────
+// DATI FASE 3 — PROCEDURA CHECKLIST
+// ─────────────────────────────────────────────
+var checklistF3 = [
+  {
+    gruppo: 'PREPARAZIONE',
+    titolo: 'Preparazione del materiale e dell\'ambiente',
+    sottotitolo: 'Seleziona tutti i passaggi corretti prima di avvicinarti al paziente',
+    items: [
+      { id: 'c1', testo: 'Igiene delle mani (soluzione idroalcolica o lavaggio chirurgico)', hint: 'OMS — 5 momenti dell\'igiene mani', corretto: true },
+      { id: 'c2', testo: 'Indosso DPI: guanti monouso (non sterili), mascherina, occhiali se disponibili', hint: 'Rischio di schizzi di secreti gastrici', corretto: true },
+      { id: 'c3', testo: 'Preparo: SNG calibro appropriato (Fr 14-16 adulto), siringa 50ml, gel lubrificante, cerotto anallergico, telino, bacinella reniforme, stetoscopio, pH-metro o strisce reattive', hint: 'Tutto il materiale deve essere a portata di mano prima di iniziare', corretto: true },
+      { id: 'c4', testo: 'Indosso guanti sterili per l\'inserimento della sonda', hint: 'ATTENZIONE — i guanti sterili NON sono indicati per questa procedura', corretto: false },
+      { id: 'c5', testo: 'Verifico la data di scadenza e l\'integrità della confezione della sonda', hint: 'Controllo qualità del dispositivo medico', corretto: true },
+      { id: 'c6', testo: 'Porto il materiale al letto del paziente su un telino pulito', hint: 'Mantenimento del campo pulito di lavoro', corretto: true }
+    ],
+    pts: 12
+  },
+  {
+    gruppo: 'POSIZIONAMENTO PAZIENTE',
+    titolo: 'Posizionamento del paziente',
+    sottotitolo: 'Seleziona la sequenza corretta di azioni',
+    items: [
+      { id: 'p1', testo: 'Posiziono il paziente in Fowler 45°-90° (semiseduto)', hint: 'Riduce il rischio di inalazione e facilita la progressione della sonda verso lo stomaco', corretto: true },
+      { id: 'p2', testo: 'Posiziono il paziente in decubito laterale sinistro', hint: 'ATTENZIONE — questa è la posizione per la gastroscopia, non per l\'SNG nel paziente collaborante', corretto: false },
+      { id: 'p3', testo: 'Posiziono il telino sul torace del paziente', hint: 'Protezione dagli schizzi di secreti', corretto: true },
+      { id: 'p4', testo: 'Rimuovo le protesi dentarie se presenti', hint: 'Riduce il rischio di aspirazione e lesioni durante il riflesso faringeo', corretto: true },
+      { id: 'p5', testo: 'Posiziono la bacinella reniforme a portata del paziente', hint: 'Il paziente potrebbe avere conati durante la procedura', corretto: true }
+    ],
+    pts: 10
+  },
+  {
+    gruppo: 'INSERIMENTO',
+    titolo: 'Misurazione e inserimento della sonda',
+    sottotitolo: 'Seleziona solo le azioni corrette nella sequenza giusta',
+    items: [
+      { id: 'i1', testo: 'Misuro la lunghezza di inserimento: dalla punta del naso al lobo dell\'orecchio + dal lobo dell\'orecchio all\'epigastrio (processo xifoideo). Segno il punto sulla sonda.', hint: 'Metodo NEX (Nose-Ear-Xiphoid) — distanza media ~55-65 cm nell\'adulto', corretto: true },
+      { id: 'i2', testo: 'Misuro solo dalla narice allo stomaco "a occhio"', hint: 'ATTENZIONE — la misurazione standardizzata è obbligatoria per evitare malposizionamento', corretto: false },
+      { id: 'i3', testo: 'Lubrìfico l\'estremità distale della sonda con gel idrosolubile (5-10 cm)', hint: 'NON usare vaselina — non è idrosolubile e può causare lipopolmonite se inalata', corretto: true },
+      { id: 'i4', testo: 'Introduco la sonda nella narice selezionata con la testa in leggera flessione anteriore (mento verso il petto)', hint: 'La flessione anteriore chiude la laringe e apre l\'esofago — riduce il rischio di intubazione tracheale', corretto: true },
+      { id: 'i5', testo: 'Quando la sonda raggiunge il faringe (circa 15 cm), invito il paziente a deglutire', hint: 'La deglutizione apre lo sfintere esofageo superiore e facilita l\'avanzamento della sonda', corretto: true },
+      { id: 'i6', testo: 'Se incontro resistenza, forzo l\'avanzamento della sonda', hint: 'ATTENZIONE — in caso di resistenza si FERMA e si rivaluta. Non forzare mai.', corretto: false },
+      { id: 'i7', testo: 'Se il paziente tossisce persistentemente o diventa cianotico, rimuovo immediatamente la sonda', hint: 'Tosse persistente e cianosi = segnali di malposizionamento tracheale. Emergenza!', corretto: true }
+    ],
+    pts: 15
+  },
+  {
+    gruppo: 'VERIFICA POSIZIONAMENTO',
+    titolo: 'Verifica del posizionamento gastrico',
+    sottotitolo: 'Quali metodi utilizzi per verificare il corretto posizionamento?',
+    items: [
+      { id: 'v1', testo: 'Aspiro il contenuto gastrico con siringa da 50ml e verifico il pH ≤ 5.5 con strisce reattive', hint: 'Metodo raccomandato dalle linee guida NICE (2012) e SINPE come prima verifica', corretto: true },
+      { id: 'v2', testo: 'Injetto 20ml di aria e ausculto con stetoscopio in epigastrio (metodo "whoosh")', hint: 'ATTENZIONE — questo metodo NON è affidabile e NON è raccomandato dalle linee guida aggiornate', corretto: false },
+      { id: 'v3', testo: 'Richiedo Rx torace-addome in caso di dubbio sul posizionamento o impossibilità di aspirare succo gastrico', hint: 'Gold standard per la verifica del posizionamento — obbligatorio in caso di dubbio', corretto: true },
+      { id: 'v4', testo: 'Verifico che la sonda non sia arricciata in orofaringe ispezionando il cavo orale', hint: 'Importante se l\'inserimento ha incontrato difficoltà o il paziente non collabora', corretto: true },
+      { id: 'v5', testo: 'Immergo l\'estremità libera della sonda in acqua per escludere bolle (= trachea)', hint: 'Metodo storico ausiliario — può dare falsi negativi. Non sostituisce pH o Rx', corretto: false }
+    ],
+    pts: 15
+  },
+  {
+    gruppo: 'FISSAGGIO E REGISTRAZIONE',
+    titolo: 'Fissaggio, documentazione e comfort',
+    sottotitolo: 'Completa la procedura correttamente',
+    items: [
+      { id: 'f1', testo: 'Fisso la sonda alla narice con cerotto anallergico senza creare trazione', hint: 'La trazione prolungata causa necrosi della columella nasale — fissaggio "a ponte" sulla narice', corretto: true },
+      { id: 'f2', testo: 'Fisso la sonda al lenzuolo del paziente con un secondo punto di ancoraggio', hint: 'Riduce il rischio di rimozione accidentale', corretto: true },
+      { id: 'f3', testo: 'Registro in cartella: data e ora del posizionamento, calibro e tipo di sonda, narice utilizzata, lunghezza esterna visibile, metodo di verifica e risultato (pH), tolleranza del paziente', hint: 'Documentazione completa = continuità assistenziale e responsabilità professionale', corretto: true },
+      { id: 'f4', testo: 'Rimuovo i guanti, eseguo igiene delle mani, sistemo il paziente in posizione comoda', hint: 'Chiusura corretta della procedura', corretto: true },
+      { id: 'f5', testo: 'Lascio la sonda aperta all\'aria per aerare lo stomaco', hint: 'ATTENZIONE — la sonda va chiusa o collegata alla nutrizione/aspirazione. Lasciata aperta può causare perdita di succo gastrico', corretto: false }
+    ],
+    pts: 8
+  }
+];
+
+// ─────────────────────────────────────────────
+// STATO RUNTIME
+// ─────────────────────────────────────────────
+var f1_idx = 0;
+var f1_answered = false;
+var f2_idx = 0;
+var f2_answered = false;
+var f3_idx = 0;
+var f3_checked = {};
+var f3_verified = false;
+
+function startSim() {
+  document.getElementById('introScreen').style.display = 'none';
+  document.getElementById('appLayout').style.display = 'grid';
+  renderPhase1();
+  updateDots();
+}
+
+function tryGoPhase(idx) {
+  if (idx === 0) { currentPhase = 0; renderPhase1(); }
+  else if (idx === 1 && phaseDone[0]) { currentPhase = 1; renderPhase2(); }
+  else if (idx === 2 && phaseDone[1]) { currentPhase = 2; renderPhase3(); }
+  else if (!phaseDone[idx - 1]) { /* locked */ }
+  updateDots();
+  updateNavBtns();
+}
+
+function updateScore(pts) {
+  score = Math.min(100, score + pts);
+  phaseScores[currentPhase] = (phaseScores[currentPhase] || 0) + pts;
+  document.getElementById('scoreDisplay').textContent = score;
+  document.getElementById('progressFill').style.width = score + '%';
+}
+
+function updateDots() {
+  [0,1,2].forEach(function(i) {
+    var d = document.getElementById('dot' + i);
+    d.className = 'phase-dot';
+    if (phaseDone[i]) d.classList.add('done');
+    else if (i === currentPhase) d.classList.add('active');
+  });
+}
+
+function updateNavBtns() {
+  [0,1,2].forEach(function(i) {
+    var b = document.getElementById('navBtn' + i);
+    b.className = 'phase-btn';
+    if (i === currentPhase) b.classList.add('active');
+    else if (phaseDone[i]) b.classList.add('done');
+    else if (i > 0 && !phaseDone[i-1]) b.classList.add('locked');
+  });
+}
+
+// ─────────────────────────────────────────────
+// FASE 1
+// ─────────────────────────────────────────────
+function renderPhase1() {
+  var m = document.getElementById('mainArea');
+  m.innerHTML = '<div class="phase-header"><span class="phase-tag">FASE 01</span><span class="phase-title">Raccolta Dati e Consenso</span><span class="phase-desc">Quiz clinico — 5 domande</span></div><div class="quiz-area" id="quizArea"></div>';
+  f1_idx = 0;
+  f1_answered = false;
+  showQ1();
+}
+
+function showQ1() {
+  if (f1_idx >= quizF1.length) { completePhase1(); return; }
+  var q = quizF1[f1_idx];
+  var qa = document.getElementById('quizArea');
+  var optsHtml = '';
+  q.opts.forEach(function(o, oi) {
+    optsHtml += '<button class="quiz-opt" id="opt'+oi+'" onclick="answerQ1('+oi+')">' + o + '</button>';
+  });
+  qa.innerHTML = '<div class="quiz-card"><div class="quiz-step">' + q.step + '</div>'
+    + (q.context ? '<div class="quiz-context">' + q.context + '</div>' : '')
+    + '<div class="quiz-question">' + q.question + '</div>'
+    + '<div class="quiz-opts">' + optsHtml + '</div>'
+    + '<div id="fbBox"></div></div>';
+  qa.scrollTop = 0;
+}
+
+function answerQ1(idx) {
+  if (f1_answered) return;
+  f1_answered = true;
+  var q = quizF1[f1_idx];
+  var opts = document.querySelectorAll('.quiz-opt');
+  opts.forEach(function(o) { o.disabled = true; });
+  var isCorrect = (idx === q.correct);
+  opts[q.correct].classList.add('correct');
+  if (!isCorrect) opts[idx].classList.add('wrong');
+  var pts = isCorrect ? q.pts : Math.floor(q.pts * 0.2);
+  updateScore(pts);
+  var fbClass = isCorrect ? 'ok' : 'warn';
+  var fbIcon = isCorrect ? '✓' : '⚠';
+  document.getElementById('fbBox').innerHTML =
+    '<div class="quiz-feedback ' + fbClass + '">'
+    + fbIcon + ' ' + (isCorrect ? q.ok : q.warn)
+    + '<span class="pts-badge">+' + pts + ' pt</span>'
+    + '</div>'
+    + '<button class="verify-btn" style="margin-top:14px" onclick="nextQ1()">'
+    + (f1_idx < quizF1.length - 1 ? 'Domanda successiva →' : 'Completa fase 1 →')
+    + '</button>';
+}
+
+function nextQ1() {
+  f1_idx++;
+  f1_answered = false;
+  showQ1();
+}
+
+function completePhase1() {
+  phaseDone[0] = true;
+  updateNavBtns();
+  updateDots();
+  var qa = document.getElementById('quizArea');
+  qa.innerHTML = '<div class="quiz-card" style="max-width:600px">'
+    + '<div class="quiz-step">FASE 01 COMPLETATA</div>'
+    + '<div class="quiz-question" style="color:var(--ok)">✓ Raccolta dati e consenso completati</div>'
+    + '<p style="font-size:13px;color:#b0bec5;margin-top:8px;line-height:1.7">Hai completato la valutazione clinica pre-procedura e il colloquio di consenso informato. Punteggio fase: <strong style="color:var(--accent)">' + phaseScores[0] + ' pt</strong></p>'
+    + '<button class="next-phase-btn" style="margin-top:20px" onclick="tryGoPhase(1)">Vai alla Fase 02 — Colloquio paziente →</button>'
+    + '</div>';
+}
+
+// ─────────────────────────────────────────────
+// FASE 2
+// ─────────────────────────────────────────────
+function renderPhase2() {
+  var m = document.getElementById('mainArea');
+  m.innerHTML = '<div class="phase-header"><span class="phase-tag">FASE 02</span><span class="phase-title">Colloquio con il Paziente</span><span class="phase-desc">Comunicazione terapeutica — 4 scenari</span></div><div class="quiz-area" id="dialogArea"></div>';
+  f2_idx = 0;
+  f2_answered = false;
+  showDialog2();
+}
+
+function showDialog2() {
+  if (f2_idx >= dialogF2.length) { completePhase2(); return; }
+  var d = dialogF2[f2_idx];
+  var optsHtml = '';
+  d.opts.forEach(function(o, oi) {
+    optsHtml += '<button class="quiz-opt" id="dopt'+oi+'" onclick="answerD2('+oi+')">' + o.testo + '</button>';
+  });
+  var da = document.getElementById('dialogArea');
+  da.innerHTML =
+    '<div class="msg" style="max-width:820px">'
+    + '<div class="avatar ai">PZ</div>'
+    + '<div class="bubble"><div class="sender ai-name">PAZIENTE — ROSSI MARIO</div>' + d.paziente + '</div>'
+    + '</div>'
+    + '<div class="quiz-card" style="margin-top:0">'
+    + '<div class="quiz-step">SCENARIO ' + (f2_idx+1) + '/4 — COMUNICAZIONE TERAPEUTICA</div>'
+    + '<div class="quiz-question">' + d.domanda + '</div>'
+    + '<div class="quiz-opts">' + optsHtml + '</div>'
+    + '<div id="fbBox2"></div></div>';
+  da.scrollTop = 0;
+}
+
+function answerD2(idx) {
+  if (f2_answered) return;
+  f2_answered = true;
+  var d = dialogF2[f2_idx];
+  var o = d.opts[idx];
+  var opts = document.querySelectorAll('.quiz-opt');
+  opts.forEach(function(opt) { opt.disabled = true; });
+
+  var best = 0;
+  d.opts.forEach(function(op, i) { if (op.score > d.opts[best].score) best = i; });
+  opts[best].classList.add('correct');
+  if (idx !== best) opts[idx].classList.add('wrong');
+
+  var pts = Math.round(o.score * 0.5);
+  if (pts > 0) updateScore(pts);
+
+  var isGood = o.score >= 8;
+  document.getElementById('fbBox2').innerHTML =
+    '<div class="quiz-feedback ' + (isGood ? 'ok' : 'warn') + '">'
+    + (isGood ? '✓ ' : '⚠ ') + o.fb
+    + (pts > 0 ? '<span class="pts-badge">+' + pts + ' pt</span>' : '')
+    + '</div>'
+    + '<button class="verify-btn" style="margin-top:14px" onclick="nextD2()">'
+    + (f2_idx < dialogF2.length - 1 ? 'Scenario successivo →' : 'Completa fase 2 →')
+    + '</button>';
+}
+
+function nextD2() {
+  f2_idx++;
+  f2_answered = false;
+  showDialog2();
+}
+
+function completePhase2() {
+  phaseDone[1] = true;
+  updateNavBtns();
+  updateDots();
+  var da = document.getElementById('dialogArea');
+  da.innerHTML = '<div class="quiz-card" style="max-width:600px">'
+    + '<div class="quiz-step">FASE 02 COMPLETATA</div>'
+    + '<div class="quiz-question" style="color:var(--ok)">✓ Colloquio con il paziente completato</div>'
+    + '<p style="font-size:13px;color:#b0bec5;margin-top:8px;line-height:1.7">Hai gestito tutti gli scenari di comunicazione terapeutica. Punteggio fase: <strong style="color:var(--accent)">' + phaseScores[1] + ' pt</strong></p>'
+    + '<button class="next-phase-btn" style="margin-top:20px" onclick="tryGoPhase(2)">Vai alla Fase 03 — Procedura SNG →</button>'
+    + '</div>';
+}
+
+// ─────────────────────────────────────────────
+// FASE 3
+// ─────────────────────────────────────────────
+function renderPhase3() {
+  var m = document.getElementById('mainArea');
+  m.innerHTML = '<div class="phase-header"><span class="phase-tag">FASE 03</span><span class="phase-title">Procedura SNG</span><span class="phase-desc">Checklist per fasi — segnala TUTTI i passaggi corretti</span></div><div class="quiz-area" id="checkArea"></div>';
+  f3_idx = 0;
+  f3_checked = {};
+  f3_verified = false;
+  showChecklist3();
+}
+
+function showChecklist3() {
+  if (f3_idx >= checklistF3.length) { completePhase3(); return; }
+  var g = checklistF3[f3_idx];
+  var itemsHtml = '';
+  g.items.forEach(function(item) {
+    itemsHtml += '<div class="check-item" id="ci_' + item.id + '">'
+      + '<input type="checkbox" id="' + item.id + '" onchange="toggleCheck(\'' + item.id + '\')">'
+      + '<label for="' + item.id + '">' + item.testo
+      + '<span class="hint">' + item.hint + '</span>'
+      + '</label></div>';
+  });
+  document.getElementById('checkArea').innerHTML =
+    '<div class="checklist-card" style="max-width:700px">'
+    + '<div class="quiz-step">' + g.gruppo + ' — FASE 03</div>'
+    + '<h4 class="quiz-question" style="margin-bottom:4px">' + g.titolo + '</h4>'
+    + '<p class="checklist-subtitle">' + g.sottotitolo + '</p>'
+    + itemsHtml
+    + '<button class="verify-btn" id="verifyBtn3" onclick="verifyChecklist3()">Verifica selezione</button>'
+    + '<div id="fbBox3"></div>'
+    + '</div>';
+}
+
+function toggleCheck(id) {
+  var el = document.getElementById(id);
+  f3_checked[id] = el.checked;
+  var ci = el.closest('.check-item');
+  if (el.checked) ci.classList.add('checked');
+  else ci.classList.remove('checked');
+}
+
+function verifyChecklist3() {
+  if (f3_verified) return;
+  f3_verified = true;
+  document.getElementById('verifyBtn3').disabled = true;
+  var g = checklistF3[f3_idx];
+  var correct = 0, wrong = 0, missed = 0;
+  var errori = [], mancanti = [];
+  g.items.forEach(function(item) {
+    var checked = !!f3_checked[item.id];
+    var ci = document.getElementById('ci_' + item.id);
+    var inp = document.getElementById(item.id);
+    inp.disabled = true;
+    if (item.corretto && checked) {
+      correct++;
+      ci.querySelector('label').style.color = 'var(--ok)';
+    } else if (!item.corretto && checked) {
+      wrong++;
+      ci.querySelector('label').style.color = 'var(--warn)';
+      errori.push('✗ "' + item.testo.substring(0, 60) + '..."');
+    } else if (item.corretto && !checked) {
+      missed++;
+      ci.querySelector('label').style.color = '#ffa726';
+      mancanti.push('⚠ "' + item.testo.substring(0, 60) + '..."');
+    }
+  });
+  var maxCorrect = g.items.filter(function(i) { return i.corretto; }).length;
+  var pts = Math.round(g.pts * (correct / maxCorrect) * Math.max(0, (1 - wrong * 0.3)));
+  pts = Math.max(0, pts);
+  updateScore(pts);
+  var fbHtml = '<div class="quiz-feedback ' + (wrong === 0 && missed === 0 ? 'ok' : 'warn') + '" style="margin-top:14px">';
+  if (wrong === 0 && missed === 0) {
+    fbHtml += '✓ Perfetto! Tutti i passaggi corretti identificati.';
+  } else {
+    if (wrong > 0) fbHtml += '<strong>Passaggi errati selezionati (' + wrong + '):</strong><br>' + errori.join('<br>') + '<br><br>';
+    if (missed > 0) fbHtml += '<strong>Passaggi mancanti (' + missed + '):</strong><br>' + mancanti.join('<br>');
+  }
+  fbHtml += '<span class="pts-badge">+' + pts + ' pt</span></div>';
+  var nextLabel = f3_idx < checklistF3.length - 1 ? 'Fase successiva →' : 'Completa procedura →';
+  fbHtml += '<button class="verify-btn" style="margin-top:14px" onclick="nextChecklist3()">' + nextLabel + '</button>';
+  document.getElementById('fbBox3').innerHTML = fbHtml;
+  f3_verified = false;
+}
+
+function nextChecklist3() {
+  f3_idx++;
+  f3_checked = {};
+  f3_verified = false;
+  var ca = document.getElementById('checkArea');
+  ca.innerHTML = '';
+  showChecklist3();
+  ca.scrollTop = 0;
+}
+
+function completePhase3() {
+  phaseDone[2] = true;
+  updateNavBtns();
+  updateDots();
+  showComplete();
+}
+
+// ─────────────────────────────────────────────
+// SCHERMATA FINALE
+// ─────────────────────────────────────────────
+function showComplete() {
+  var m = document.getElementById('mainArea');
+  var grade, color;
+  if (score >= 88) { grade = 'Eccellente'; color = 'var(--ok)'; }
+  else if (score >= 72) { grade = 'Buono'; color = 'var(--accent)'; }
+  else if (score >= 55) { grade = 'Sufficiente'; color = '#ffa726'; }
+  else { grade = 'Da rivedere'; color = 'var(--warn)'; }
+
+  m.innerHTML = '<div class="complete-screen"><div class="complete-card">'
+    + '<h2>✓ Simulazione completata</h2>'
+    + '<p>Hai completato tutte e tre le fasi del training SNG.</p>'
+    + '<div class="final-score" style="color:' + color + '">' + score + '<span style="font-size:20px;color:var(--muted)">/100</span></div>'
+    + '<p style="font-size:16px;font-weight:600;color:' + color + '">' + grade + '</p>'
+    + '<p style="margin-top:16px;font-size:12px;line-height:2">'
+    + 'Fase 01 — Raccolta dati: <strong style="color:var(--accent)">' + (phaseScores[0]||0) + ' pt</strong><br>'
+    + 'Fase 02 — Colloquio: <strong style="color:var(--accent)">' + (phaseScores[1]||0) + ' pt</strong><br>'
+    + 'Fase 03 — Procedura: <strong style="color:var(--accent)">' + (phaseScores[2]||0) + ' pt</strong>'
+    + '</p>'
+    + '<button class="restart-btn" onclick="location.reload()">↺ Nuovo tentativo</button>'
+    + '</div></div>';
+}
+</script>
+</body>
+</html>
